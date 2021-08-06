@@ -1,8 +1,9 @@
 name: DockerHub Publish
 
 on:
-  push:
-    branches: [ master ]
+  create:
+    tags:
+      - "*"
 
 env:
   IMAGE_NAME: melotools/tor
@@ -28,11 +29,21 @@ jobs:
       - name: Pull final image if it exists
         run: docker pull $IMAGE_NAME || true
 
+      - name: Get the tag
+        id: get_tag
+        run: echo ::set-output name=tag::${GITHUB_REF/refs\/tags\//}
+
       - name: Build updated final image if necessary
         run: docker build --pull
           --cache-from $IMAGE_NAME
           -f ./Dockerfile
           -t $IMAGE_NAME:latest .
 
-      - name: Push the image tagged as latest as well
+      - name: Push the image tagged with latest
         run: docker push $IMAGE_NAME:latest
+
+      - name: Also tag the image with a version tag
+        run: docker tag $IMAGE_NAME:latest $IMAGE_NAME:${{ steps.get_tag.outputs.tag }}
+
+      - name: And push the image with the version tag
+        run: docker push $IMAGE_NAME:${{ steps.get_tag.outputs.tag }}
